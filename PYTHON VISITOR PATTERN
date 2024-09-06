@@ -1,0 +1,135 @@
+from collections import defaultdict
+from enum import Enum
+
+class Color(Enum):
+    RED = 1
+    GREEN = 2
+
+class Tree:
+    def __init__(self, value, color, depth):
+        self.value = value
+        self.color = color
+        self.depth = depth
+
+    def accept(self, visitor):
+        raise NotImplementedError
+
+class TreeNode(Tree):
+    def __init__(self, value, color, depth):
+        super().__init__(value, color, depth)
+        self.children = []
+
+    def accept(self, visitor):
+        visitor.visit_node(self)
+        for child in self.children:
+            child.accept(visitor)
+
+    def add_child(self, child):
+        self.children.append(child)
+
+class TreeLeaf(Tree):
+    def __init__(self, value, color, depth):
+        super().__init__(value, color, depth)
+
+    def accept(self, visitor):
+        visitor.visit_leaf(self)
+
+class TreeVis:
+    def __init__(self):
+        raise NotImplementedError
+
+    def get_result(self):
+        raise NotImplementedError
+
+    def visit_node(self, node):
+        raise NotImplementedError
+
+    def visit_leaf(self, leaf):
+        raise NotImplementedError
+
+class SumInLeavesVisitor(TreeVis):
+    def __init__(self):
+        self.sum_in_leaves = 0
+
+    def get_result(self):
+        return self.sum_in_leaves
+
+    def visit_node(self, node):
+        pass
+
+    def visit_leaf(self, leaf):
+        self.sum_in_leaves += leaf.value
+
+class ProductOfRedNodesVisitor(TreeVis):
+    def __init__(self):
+        self.product_of_red_nodes = 1
+
+    def get_result(self):
+        return self.product_of_red_nodes
+
+    def multiply(self, tree):
+        if tree.color == Color.RED:
+            self.product_of_red_nodes = (self.product_of_red_nodes * tree.value) % 1000000007
+
+    def visit_node(self, node):
+        self.multiply(node)
+
+    def visit_leaf(self, leaf):
+        self.multiply(leaf)
+
+class FancyVisitor(TreeVis):
+    def __init__(self):
+        self.sum_of_values_non_leaf_even_depth = 0
+        self.sum_of_values_green_leaf = 0
+
+    def get_result(self):
+        return abs(self.sum_of_values_green_leaf - self.sum_of_values_non_leaf_even_depth)
+
+    def visit_node(self, node):
+        if node.depth % 2 != 0:
+            return
+        self.sum_of_values_non_leaf_even_depth += node.value
+
+    def visit_leaf(self, leaf):
+        if leaf.color != Color.GREEN:
+            return
+        self.sum_of_values_green_leaf += leaf.value
+
+def solve():
+    n = int(input())
+    node_atts = {}
+    for i in range(n):
+        node_atts[i + 1] = [int(input()), None]
+    for i in range(n):
+        node_atts[i + 1][1] = Color.RED if int(input()) == 0 else Color.GREEN
+    edges = defaultdict(list)
+    for i in range(1, n):
+        u, v = map(int, input().split())
+        edges[u].append(v)
+        edges[v].append(u)
+    root = TreeNode(node_atts[1][0], node_atts[1][1], 0)
+    tree = {1: root}
+    dfs(n, edges, node_atts, tree)
+    return tree[1]
+
+def dfs(n, edges, node_atts, tree):
+    visited = [False] * (n + 1)
+    parent = tree[1]
+    dfs_util(parent, 1, visited, edges, node_atts, tree)
+
+def dfs_util(parent, v, visited, edges, node_atts, tree):
+    visited[v] = True
+    if len(edges[v]) == 1 and v != 1:
+        tree_leaf = TreeLeaf(node_atts[v][0], node_atts[v][1], parent.depth + 1)
+        parent.add_child(tree_leaf)
+        tree[v] = tree_leaf
+        return
+    tree_node = TreeNode(node_atts[v][0], node_atts[v][1], parent.depth + 1) if v != 1 else tree[1]
+    parent.add_child(tree_node)
+    tree[v] = tree_node
+    for neighbor in edges[v]:
+        if not visited[neighbor]:
+            dfs_util(tree_node, neighbor, visited, edges, node_atts, tree)
+
+# Example usage:
+root = solve()
